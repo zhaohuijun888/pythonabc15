@@ -1,0 +1,13 @@
+imutils==0.5.4
+pyzbar==0.1.8
+numpy==1.18.3
+opencv-python==4.5.3.56
+openpyxl==3.0.9
+Pillow==8.4.0
+PyQt5==5.15.4
+keyboard==0.13.5
+python-docx==0.8.11
+pyinstaller==4.10
+pywin32==225
+pandas==1.1.5
+XlsxWriter==3.0.1
