@@ -114,6 +114,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 生成单个学生错题库、自动发送所有学生发试题和错题本邮件、打开帮助、挑选试卷（放在PIC目录下,单击阈值设置,开始阅卷按纽,完成后在ls目录下）,修补条形码（第一个输入框输入条形码后两位用空格分隔，第二个输入框输入txm后单击阈值设置按钮再单击开始阅卷）等功能。
 10.源码：https://github.com/zhaohuijun888/pythonabc15
 更多功能、操作演示请观看视频演示（B站：赵会钧）。
+
         """
         # 标签显示帮助
         self.label_shijuan.setText(self.helpstr)
@@ -938,10 +939,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 print(f'检查第{ii + 1}题区域是否对齐，单选题测出多个选项。')
                 self.duoxuanset.add((str(self.filelist[self.filenumjsq]))[-6:])
                 self.jianquekg = False
+                if self.lineEdit_chaxunxuesheng.text() == '3':
+                    self.jianquekg = True
 
             if len(self.charuxuan[ii + 1]) == 4:
                 self.duoxuanset.add((str(self.filelist[self.filenumjsq]))[-6:])
                 self.jianquekg = False
+                if self.lineEdit_chaxunxuesheng.text() == '3':
+                    self.jianquekg = True
             # 字典self.charuxuan的选项列表转化为字符串加入字典self.gengxinruxuan题号对应值的列表中
             self.gengxinruxuan[ii + 1].append(''.join(self.charuxuan[ii + 1]))
             kk = kk + 16
@@ -1009,10 +1014,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.jianquekg = False
             if self.lineEdit_chaxunxuesheng.text() == '3':
                 self.jianquekg = True
-            if self.lineEdit_chaxunxuesheng.text() == '3':
-                self.jianquekg = True
-                if self.lineEdit_chaxunxuesheng.text() == '3':
-                    self.jianquekg = True
+
             self.kongxuanxiansum = self.kongxuanxiansum + str(self.kongxuanxian)
         logging.debug("扣分打印正常")
         # 计算学生总分
