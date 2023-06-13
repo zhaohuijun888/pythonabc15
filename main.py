@@ -110,8 +110,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 6. 试卷阅完后，第一个单行文本输入框内输入学生姓名，单击【查询学生】按钮进行查看。
 7. 单击【导出excel】按钮统计分析学生成绩。
 8.第二个文本输入框输入['15','20','25','30','45','60']中的数字单击阈值设置，可调整识别比率。正常30，单选判为多选可调大，空白选项多时调小。输入其它数学，可调整阈值。
-9.阈值输入框依次输入ej、xt、cj、ct、yj、bz,txsj,txm单击【阈值设置】按钮分别启动批改二卷、打小题分、采集试题库、
-生成单个学生错题库、自动发送所有学生发试题和错题本邮件、打开帮助、挑选试卷（放在PIC目录下,单击阈值设置,开始阅卷按纽,完成后在ls目录下）,修补条形码（第一个输入框输入条形码后两位用空格分隔，第二个输入框输入txm后单击阈值设置按钮再单击开始阅卷）等功能。
+9.阈值输入框依次输入ej、xt、cj、ct、yj、yjsj、bz,txsj,txm单击【阈值设置】按钮分别启动批改二卷、打小题分（试卷在bak目录）、采集试题库、
+生成单个学生错题库、自动发送所有学生发试题和错题本邮件、自动发送bak目录下的试卷到学生邮箱（修改fsemsj内自己的pop3信息）、打开帮助、挑选试卷（放在PIC目录下,单击阈值设置,开始阅卷按纽,完成后在ls目录下）,修补条形码（第一个输入框输入条形码后两位用空格分隔，第二个输入框输入txm后单击阈值设置按钮再单击开始阅卷）等功能。
 10.源码：https://github.com/zhaohuijun888/pythonabc15
 更多功能、操作演示请观看视频演示（B站：赵会钧）。
 
@@ -245,6 +245,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif yuzhistr == 'yj':
             import ctmain2email3
             ctmain2email3.main()
+            print('邮件已全部发送！')
+        # 只把试卷发邮件给学生:需要修改fsemsj内信息为自己的邮箱pop3信息
+        elif yuzhistr == 'yjsj':
+            import fsemsj
+            fsemsj.fsem(self.openexcelname)
+            # print(self.openexcelname)
             print('邮件已全部发送！')
         # 帮助信息
         elif yuzhistr == 'bz':
