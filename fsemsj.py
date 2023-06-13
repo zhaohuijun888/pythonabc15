@@ -29,7 +29,7 @@ def fsem(wjname):
             # 1.创建一个带附件的实例
             msg = MIMEMultipart()
             # 2. 加邮件头
-            msg['From'] = '18704935399@sohu.com'  # 1修改成自己的邮箱
+            msg['From'] = '935399@sohu.com'  # 1修改成自己的邮箱
             msg['To'] = email
             msg['Subject'] = "高二（7）班物理{}试卷".format(ymdtime) + xsname  # 2修改成自己的标题
             # 3.构造附件1（附件为JPG格式的图片）
@@ -42,7 +42,7 @@ def fsem(wjname):
             # print('1')
             try:
                 # print('2')
-                server.login('18704935399@sohu.com', 'BCGX')  # 1修改为自己的邮箱和制授权码
+                server.login('935399@sohu.com', 'BCGX')  # 1修改为自己的邮箱和制授权码
                 # print('3')
                 server.send_message(msg)  # 发邮箱、接邮箱、纯文本内容
                 print('已发送{}'.format(xsname))
