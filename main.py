@@ -812,6 +812,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.kaohao = []
         if len(self.quyulist1) > 4:
             logging.debug('开始识9位考号')
+
             # logging.debug(self.quyulist1)
             kk = 0
             # 循环识别多位考号
@@ -832,13 +833,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                             self.quyulist1[3] - self.quyulist1[1])
                     # 计算涂黑区域占总区域面积百分比
                     ratio = baisemianji * 100 / quanbumianji
+                    logging.debug(f"{x1}, {y1}, {x2}, {y2}, {ratio}")
                     # 如果大于指定比率，加入索引列表和比率列表
-                    if ratio > self.mianjibaifenbi:
-                        jjlist.append(jj)
-                        jjbiliulist.append(jjbiliulist)
+                    # if ratio > self.mianjibaifenbi:
+                    jjlist.append(jj)
+                    jjbiliulist.append(ratio)
+                logging.debug(f"第{ii}位考号识别情况是：{jjbiliulist}")
                 if len(jjbiliulist) > 0:  # 如果有识别出的数字
                     # 返回10位数字最大占比的索引值
                     jj = jjlist[jjbiliulist.index(max(jjbiliulist))]
+
                     # 数字中最在比率的为识别结果，加入self.kaohao
                     if jj == 0:
                         self.kaohao.append('0')
@@ -860,7 +864,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         self.kaohao.append('8')
                     elif jj == 36:
                         self.kaohao.append('9')
+                    logging.debug(f"{self.kaohao}")
                     kk = kk + 40
+
                 else:  # 如果没有识别出的数字
                     print('该生没涂考号！')
                     break
@@ -1195,6 +1201,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # 开始阅卷按钮
     @pyqtSlot()
     def on_pushButton_kaishi_clicked(self):
+        for i in [180, 170, 160, 120]:
+            self.yuzhi = i
+            for j in [60, 45, 30]:
+                self.mianjibaifenbi = j
+                self.kaishiyuanjuan()
+
+    def kaishiyuanjuan(self):
         # 试卷文件列表指针
         self.filenumjsq = 0
         # 批阅完成试卷计数
