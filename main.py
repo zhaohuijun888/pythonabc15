@@ -33,7 +33,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.move(0, 0)  # 窗体放中心
         self.resize(self.screen.width(), self.screen.height() - 105)
         # 去掉下面注释，不显示logging,加上注释显示
-        # logging.disable(logging.CRITICAL)#正常不显示错误信息，加上注释显示
+        logging.disable(logging.CRITICAL)  # 正常不显示错误信息，加上注释显示
         logging.basicConfig(level=logging.DEBUG)
         self.list1 = set()  # 关注名单集合
         self.duoxuanset = set()  # 单选题，判为多选文件名集合
@@ -789,6 +789,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def picchuli(self, path):
         # BGR模式读取，写入试卷，才可能用红色写入
         self.img = cv2.imread(str(path))
+
         # 灰度图用于处理试卷
         huidu = cv2.imread(str(path), 0)
         logging.debug("试卷读入转化为灰度正常")
@@ -796,6 +797,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         t, erzhihua = cv2.threshold(huidu, int(self.yuzhi), 255, cv2.THRESH_BINARY_INV)
         logging.debug("试卷二值化处理正常")
 
+        # 扩大红色的范围
+        # lower_red = np.array([0, 0, 70])
+        # upper_red = np.array([230, 230, 255])
+        #
+        # # 创建红色的掩膜
+        # erzhihua = cv2.inRange(self.img, lower_red, upper_red)
+        # 以上为试验替换
         self.kaiyunsuan = erzhihua
 
         logging.debug(f'kg:{self.dingweikaiguan}')
@@ -1117,7 +1125,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                                            column=3).value = self.right * self.meitifenshu + self.bandui * self.bufendefen
                         # 批改成功的试卷路径存入excel
                         self.shyijuan.cell(row=i, column=len(self.answer) + 4).value = str(
-                            self.filelist[self.filenumjsq]).replace('pic', 'bak')
+                            self.filelist[self.filenumjsq]).split("\\")[-1]
                         # 以下四行把成功识别的试卷放入bak下
                         if self.jianquekg == True:
                             # 有效试卷读数加1
@@ -1201,11 +1209,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # 开始阅卷按钮
     @pyqtSlot()
     def on_pushButton_kaishi_clicked(self):
-        for i in [180, 170, 160, 120]:
+        for i in [170, 120]:
             self.yuzhi = i
-            for j in [60, 45, 30]:
+            for j in [60, 45, 30, 5]:
                 self.mianjibaifenbi = j
                 self.kaishiyuanjuan()
+        # self.bianlipic()
+        print(f'还有{len(self.filelist)}份试卷没有录入，1手动调整区域2检查试卷3强制录入。')
 
     def kaishiyuanjuan(self):
         # 试卷文件列表指针
