@@ -1,10 +1,7 @@
 ﻿import json
 import time
 from itertools import chain
-
 import imutils
-import numpy as np
-
 import pyzbar.pyzbar as pyzbar
 import cv2
 import openpyxl
@@ -21,6 +18,7 @@ import os
 import shutil
 from pathlib import Path
 from pystrich.code128 import Code128Encoder
+import fentopic
 
 imagePath = Path.cwd()
 
@@ -43,6 +41,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.openexcelname = ''
         # 存储答案列表初始化
         self.answer = [''] * 21
+        self.strfs = ''  # 总分
         # 选项坐标初使化
         self.quyulist = []
         # 考号坐标初使化
@@ -55,7 +54,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 试卷文件列表指针
         self.filenumjsq = 0
         # 批阅完成试卷计数
-        self.youxiaonum = 0
+        # self.youxiaonum = 0
         # 选项中有空白试卷文件名
         self.kongxuanxiansum = ''
         # 有效试卷总分
@@ -74,6 +73,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.kong = 0
         # 条形码最小值和最大值
         self.zimu = [0, 0]
+        # 分值列表
+        self.fenzhilist = []
         # 挑选试题开关
         self.tiaoxuanshijuankaiguan = False
         self.wenjianjia = ''
@@ -106,12 +107,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
   4）坐标采集方法在采集程序内。  
 3.单击【选择文件夹】按钮，选择试卷所在文件夹。
 4.单击【调整区域】按钮预览区域.第1个文本输入如10 10单击【调整区域】调整选项区域，输入-2 3 1只调整所有区域。
-5.单击【开始阅卷】按钮，开始阅卷。第一个文本输入框输入数字1是正常阅卷，2是查看二值图，3是问题试卷强制通过。
+5.单击【开始阅卷】按钮，开始阅卷。第一个文本输入框输入数字1是正常阅卷，2是查看二值图，3是问题试卷强制通过4手动阅卷，否则自动阅卷。
 6. 试卷阅完后，第一个单行文本输入框内输入学生姓名，单击【查询学生】按钮进行查看。
 7. 单击【导出excel】按钮统计分析学生成绩。
 8.第二个文本输入框输入['15','20','25','30','45','60']中的数字单击阈值设置，可调整识别比率。正常30，单选判为多选可调大，空白选项多时调小。输入其它数学，可调整阈值。
-9.阈值输入框依次输入ej、xt、cj、ct、yj、yjsj、bz,txsj,txm单击【阈值设置】按钮分别启动批改二卷、打小题分（试卷在bak目录）、采集试题库、
-生成单个学生错题库、自动发送所有学生发试题和错题本邮件、自动发送bak目录下的试卷到学生邮箱（修改fsemsj内自己的pop3信息）、打开帮助、挑选试卷（放在PIC目录下,单击阈值设置,开始阅卷按纽,完成后在ls目录下）,修补条形码（第一个输入框输入条形码后两位用空格分隔，第二个输入框输入txm后单击阈值设置按钮再单击开始阅卷）等功能。
+9.阈值输入框输入信息后单击【阈值设置】按钮与功能对应
+ej  批改二卷
+xt 打小题分（试卷在bak目录）
+cj 采集试题库
+ct 生成单个学生错题库
+yj 自动发送错题集和试卷
+sj自动发送bak目录下的试卷到学生邮箱（修改fsemsj内自己的pop3信息）
+bz 打开帮助
+txsj 挑选试卷（放在PIC目录下,单击阈值设置,开始阅卷按纽,完成后在ls目录下，每生两页试卷输入txsj
+txsj1 每生1页试卷输入txsj1
+txm 修补条形码（第一个输入框输入条形码后两位用空格分隔，第二个输入框输入txm后单击阈值设置按钮再单击开始阅卷
+
 10.源码：https://github.com/zhaohuijun888/pythonabc15
 更多功能、操作演示请观看视频演示（B站：赵会钧）。
 
@@ -221,11 +232,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @pyqtSlot()
     def on_pushButton_yuzhi_clicked(self):
         yuzhistr = self.lineEdit_yuzhi.text()
+        self.yuzhistr = yuzhistr
         xsxm = self.lineEdit_chaxunxuesheng.text()
         logging.debug('输入阈值文本框内容为：{}'.format(yuzhistr))
         # 试卷打印小题分
         if yuzhistr == 'xt':
-            import fentopic
+
             fentopic.fentopic()
             print('分数已全部打印到试卷上')
         # 打开II卷批改程序
@@ -247,17 +259,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             ctmain2email3.main()
             print('邮件已全部发送！')
         # 只把试卷发邮件给学生:需要修改fsemsj内信息为自己的邮箱pop3信息
-        elif yuzhistr == 'yjsj':
+        elif yuzhistr == 'sj':
             import fsemsj
+            print(self.openexcelname)
             fsemsj.fsem(self.openexcelname)
-            # print(self.openexcelname)
+
             print('邮件已全部发送！')
         # 帮助信息
         elif yuzhistr == 'bz':
             self.label_shijuan.setText(self.helpstr)
         elif yuzhistr == 'txm':
             self.shengchengtiaoxingma()
-        elif yuzhistr == 'txsj':
+        elif yuzhistr == 'txsj' or yuzhistr == 'txsj1':
             self.tiaoxuanshijuankaiguan = True
             print(self.tiaoxuanshijuankaiguan)
         elif yuzhistr in ['15', '30', '45', '60']:
@@ -311,6 +324,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_pushButton_daanqueren_clicked(self):
         # 清除原有答案列表
         self.answer.clear()
+        self.fenzhilist.clear()
         # 打开excel及两个有答案的表
         try:
             self.chengjiexcel = openpyxl.load_workbook(self.openexcelname)
@@ -331,9 +345,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.shcs = self.chengjiexcel.create_sheet('cs')
             logging.debug('存储时的cs已打开')
 
-        # 试卷参数赋值变量
-        self.tishu = int(self.lineEdit_tishu.text())  # 设置题目数量
-        self.meitifenshu = int(self.lineEdit_meitifenshu.text())
         self.bufendefen = int(self.lineEdit_bufendefen.text())
         self.yuzhi = int(self.lineEdit_yuzhi.text())
         if self.lineEdit_chaxunxuesheng.text().isdigit():
@@ -356,6 +367,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 答案存入答案列表self.answer
         for i in range(1, 22):
             exec('self.answer.append(self.lineEdit_0{:02}.text())'.format(i))
+            # 试卷参数赋值变量
+            self.tishu = int(self.lineEdit_tishu.text())  # 设置题目数量
 
         # 使答案文本输入框只读状态，不能操作
         for i in range(1, 22):
@@ -390,13 +403,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.shyijuan.cell(row=1, column=i + 4).value = '{}'.format(i + 1)
         # 加上I卷两个字和I卷总分
         self.shyijuan.cell(row=1, column=3).value = 'I卷'
-        self.shyijuan.cell(row=2, column=3).value = self.tishu * self.meitifenshu
+        self.shyijuan.cell(row=2, column=3).value = self.lineEdit_zongfenshu.text()
         # 保存excel
         try:
             self.chengjiexcel.save(self.openexcelname)
             self.chengjiexcel.close()
+            logging.debug('保存excel成功！')
         except:
             print('保存出错，先关闭excel再重试！')
+        logging.debug('准备生成分值列表')
+        if len((self.lineEdit_meitifenshu.text()).split()) == 1:
+            logging.debug('只有单个分数')
+            self.meitifenshu = int(self.lineEdit_meitifenshu.text())
+
+        else:
+            logging.debug('有多个分数')
+            # print(111, self.lineEdit_meitifenshu.text())
+            self.meitifenshudanxuan, self.meitifenshuduoxuan = (self.lineEdit_meitifenshu.text()).split()
+            # print(self.meitifenshudanxuan, self.meitifenshuduoxuan)
+            for answer in self.answer:
+                if len(answer) == 1:  # 单选题
+                    self.fenzhilist.append(int(self.meitifenshudanxuan))
+                else:  # 多选题
+                    self.fenzhilist.append(int(self.meitifenshuduoxuan))
+            # print(self.fenzhilist)
+            # print(self.answer)
 
     # 选择文件夹按钮
     @pyqtSlot()
@@ -577,7 +608,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.shyijuan = self.chengjiexcel['yijuan']
         logging.debug('已打开选定excel文件和工作表。')
         # 读取excel答案到程序主界面
+        logging.debug('开始读取答案excel文件到程序主界面！')
         for i in range(1, 22):
+            print(i)
             exec('self.lineEdit_0{:02}.setText(self.shyijuan.cell(row=2, column=3+{}).value)'.format(i, i))
         logging.debug('已读取答案到程序主界面。')
         # 如果参数表cs存在，打开表
@@ -592,7 +625,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # 读取excel内试卷参数到变量
             self.tishu = int(self.shcs.cell(row=1, column=2).value)
             self.zongfen = int(self.shcs.cell(row=2, column=2).value)
-            self.meitifenshu = int(self.shcs.cell(row=3, column=2).value)
+            self.lineEdit_meitifenshu.setText(self.shcs.cell(row=3, column=2).value)
+
             self.bufendefen = int(self.shcs.cell(row=4, column=2).value)
             self.yuzhi = self.shcs.cell(row=5, column=2).value
             self.mianjibaifenbi = self.shcs.cell(row=6, column=2).value
@@ -678,7 +712,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # else:
             #     self.quyulist1 = []
             # 自动生成选项区域self.quyulist
-            if self.shcs.cell(row=16, column=3).value != None:
+            if (self.shcs.cell(row=16, column=3).value != None) and (
+                    self.shcs.cell(row=self.shcs.max_row, column=3).value != None):
                 # 设置选项采集点列表
                 listxxdian = []
                 # 读取数据加到选项采集点列表
@@ -732,18 +767,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                             self.quyulist.append(xxi[1] + xxgaodu1 + xxkuandu2 * xxj)
                     # print(self.quyulist)
                     logging.debug('选择题区域坐标已生成')
+            else:
+                print('选项区域设置不完整！！！重设后再运行程序！')
+                exit()
         if self.dingweikaiguan == True:
             self.quyulistbak = self.quyulist.copy()
             self.quyulist1bak = self.quyulist1.copy()
             logging.debug('区域已拷贝')
-        if 'gz' in self.chengjiexcel.sheetnames:
-            self.shgz = self.chengjiexcel['gz']
-            if self.shgz.cell(row=1, column=1).value != None:
-                logging.debug('已打开gz表。')
-                for i in range(self.shgz.max_column):  # 读取GZ人集合
-                    self.list1.add(self.shgz.cell(row=1, column=i + 1).value)
-                    # self.list11.append(self.shgz.cell(row=1, column=i + 1).value)
-                # print(self.list1)
+        # if 'gz' in self.chengjiexcel.sheetnames:
+        #     self.shgz = self.chengjiexcel['gz']
+        #     if self.shgz.cell(row=1, column=1).value != None:
+        #         logging.debug('已打开gz表。')
+        #         for i in range(self.shgz.max_column):  # 读取GZ人集合
+        #             self.list1.add(self.shgz.cell(row=1, column=i + 1).value)
+        # self.list11.append(self.shgz.cell(row=1, column=i + 1).value)
+        # print(self.list1)
         # 读取条形码最大值最小值
         txmmin = int(self.shyijuan.cell(row=3, column=1).value)
         txmmax = int(self.shyijuan.cell(row=self.shyijuan.max_row, column=1).value)
@@ -773,6 +811,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 切片题目数量
         self.answer = self.answer[: self.tishu]
         self.chengjiexcel.close()
+        if len((self.lineEdit_meitifenshu.text()).split()) == 1:
+            logging.debug('只有单个分数')
+            self.meitifenshu = int(self.lineEdit_meitifenshu.text())
+            print(self.meitifenshu)
+
+        else:
+            logging.debug('有多个分数')
+            # print(111, self.lineEdit_meitifenshu.text())
+            self.meitifenshudanxuan, self.meitifenshuduoxuan = (self.lineEdit_meitifenshu.text()).split()
+            # print(self.meitifenshudanxuan, self.meitifenshuduoxuan)
+            for answer in self.answer:
+                if len(answer) == 1:  # 单选题
+                    self.fenzhilist.append(int(self.meitifenshudanxuan))
+                else:  # 多选题
+                    self.fenzhilist.append(int(self.meitifenshuduoxuan))
+            print(self.fenzhilist)
+            # print(self.answer)
 
     # 遍历文件夹中每个文件名形成列表
     def bianlipic(self):
@@ -792,10 +847,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # 灰度图用于处理试卷
         huidu = cv2.imread(str(path), 0)
-        logging.debug("试卷读入转化为灰度正常")
+        # logging.debug("试卷读入转化为灰度正常")
         # 反向二值化
         t, erzhihua = cv2.threshold(huidu, int(self.yuzhi), 255, cv2.THRESH_BINARY_INV)
-        logging.debug("试卷二值化处理正常")
+        # logging.debug("试卷二值化处理正常")
 
         # 扩大红色的范围
         # lower_red = np.array([0, 0, 70])
@@ -806,10 +861,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 以上为试验替换
         self.kaiyunsuan = erzhihua
 
-        logging.debug(f'kg:{self.dingweikaiguan}')
+        # logging.debug(f'kg:{self.dingweikaiguan}')
         # 允许自动调是开关值为1
         if self.dingweikaiguan == True:
-            logging.debug('准备自动调整区域')
+            # logging.debug('准备自动调整区域')
             self.quyuauto()  # 自动调整区域
 
     # 考号识别
@@ -920,51 +975,53 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         kk = 0
         # 识别选择题 ii为题号索引
         for ii in range(self.tishu):
-            logging.debug('开始识别第{}题'.format(ii + 1))
+            # logging.debug('开始识别第{}题'.format(ii + 1))
             for jj in range(0, 16, 4):
                 # 取出每个选项区域坐标
                 x1 = int(self.quyulist[jj + kk])
                 x2 = int(self.quyulist[jj + kk + 2])
                 y1 = int(self.quyulist[jj + kk + 1])
                 y2 = int(self.quyulist[jj + kk + 3])
-                logging.debug('开始识别{},{},{},{}项'.format(x1, y1, x2, y2))
+                # logging.debug('开始识别{},{},{},{}项'.format(x1, y1, x2, y2))
                 hk = self.kaiyunsuan[y1:y2, x1:x2]
                 # 计算涂黑面积
                 baisemianji = cv2.countNonZero(hk)
 
                 # 计算选项总的面积
                 quanbumianji = (self.quyulist[2] - self.quyulist[0]) * (self.quyulist[3] - self.quyulist[1])
-                logging.debug('面积各为：{}{}'.format(baisemianji, quanbumianji))
+                # logging.debug('面积各为：{}{}'.format(baisemianji, quanbumianji))
                 # 计算涂黑面积占选项区域的总面积的百分比
                 ratio = baisemianji * 100 / quanbumianji
-                logging.debug('比率为：{}'.format(ratio))
-                logging.debug('jj：{}'.format(jj))
+                # logging.debug('比率为：{}'.format(ratio))
+                # logging.debug('jj：{}'.format(jj))
                 # 如果占比超过设置，加入选项字典self.charuxuan以题号为key的选项列表
                 if ratio > self.mianjibaifenbi:
                     if jj == 0:
-                        logging.debug(f'第 {ii + 1} 题选：A {ratio}')
+                        # logging.debug(f'第 {ii + 1} 题选：A {ratio}')
                         self.charuxuan[ii + 1].append('A')
                     elif jj == 4:
                         self.charuxuan[ii + 1].append('B')
-                        logging.debug(f'第 {ii + 1} 题选：B{ratio} ')
+                        # logging.debug(f'第 {ii + 1} 题选：B{ratio} ')
                     elif jj == 8:
                         self.charuxuan[ii + 1].append('C')
-                        logging.debug(f'第 {ii + 1} 题选：C {ratio}')
+                        # logging.debug(f'第 {ii + 1} 题选：C {ratio}')
                     elif jj == 12:
                         self.charuxuan[ii + 1].append('D')
-                        logging.debug(f'第 {ii + 1} 题选：D{ratio} ')
+                        # logging.debug(f'第 {ii + 1} 题选：D{ratio} ')
             if (len(self.answer[ii]) == 1) and (len(self.charuxuan[ii + 1]) > 1):
-                logging.debug('进入单选误判处理环节')
+                # logging.debug('进入单选误判处理环节')
                 self.duoxuanset.add((str(self.filelist[self.filenumjsq]))[-6:])
                 print(f'检查第{ii + 1}题区域是否对齐，单选题测出多个选项。')
                 self.duoxuanset.add((str(self.filelist[self.filenumjsq]))[-6:])
                 self.jianquekg = False
+                # logging.debug('1单选误判为多选，剪切开关设为false')
                 if self.lineEdit_chaxunxuesheng.text() == '3':
                     self.jianquekg = True
 
             if len(self.charuxuan[ii + 1]) == 4:
                 self.duoxuanset.add((str(self.filelist[self.filenumjsq]))[-6:])
                 self.jianquekg = False
+                # logging.debug('2多选误判为全选ABCD，剪切开关设为false')
                 if self.lineEdit_chaxunxuesheng.text() == '3':
                     self.jianquekg = True
             # 字典self.charuxuan的选项列表转化为字符串加入字典self.gengxinruxuan题号对应值的列表中
@@ -982,14 +1039,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # 计算一份试卷答题情况并打印在试卷上，做错的圈出正确答案
     def tongjitdayin(self):
         # 空白选项的试卷
+        logging.debug(self.jianquekg)
         self.kongxuanxian = set()
-
         # 答对题目数量
         self.right = 0
         # 半对题目数量
         self.bandui = 0
         # 空白题目数量
         self.kong = 0
+        fenzhilist = []
+        if len(self.fenzhilist) > 0:
+            fenzhilist = self.fenzhilist[:]
         # 遍历每个正确答案和学生答案
         for i in range(len(self.answer)):
             # 取出学生答案和标准答案转化为集合
@@ -1002,28 +1062,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             elif (xx.issubset(dd) == True) and (dd.difference(xx) != set()) and (self.answer[i] != '') and (
                     self.xuan[i] != ''):
                 self.bandui = self.bandui + 1
-                # 如果是竖卡（标准机读卡）分数打在题号下
-                if self.img.shape[0] < self.img.shape[0]:
-                    cv2.putText(self.img, '-' + str(self.meitifenshu - self.bufendefen),
-                                (self.quyulist[16 * i], self.quyulist[16 * i + 1]),
-                                cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 2)
-                # 如果是横卡（二卷答题卡）分数打在选项后
-                else:
+                logging.debug('进入半对扣分部分')
+                if len(self.fenzhilist) == 0:
                     cv2.putText(self.img, '-' + str(self.meitifenshu - self.bufendefen),
                                 (self.quyulist[16 * i + 14], self.quyulist[16 * i + 1 + 12]),
                                 cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 1)
+                else:
+                    logging.debug('进入半对扣分--多分值部分')
+                    logging.debug(int(self.meitifenshuduoxuan) - int(self.bufendefen))
+                    logging.debug(int(self.bufendefen) - int(self.meitifenshuduoxuan))
+                    cv2.putText(self.img, str(int(self.bufendefen) - int(self.meitifenshuduoxuan)),
+                                (self.quyulist[16 * i + 14], self.quyulist[16 * i + 1 + 12]),
+                                cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 1)
+
+                    fenzhilist[i] = int(self.meitifenshuduoxuan) - int(self.bufendefen)
+
             # 如果答错
             else:
-                # 如果是竖卡（标准机读卡）分数打在题号下
-                if self.img.shape[0] < self.img.shape[0]:
-                    cv2.putText(self.img, '-' + str(self.meitifenshu),
-                                (self.quyulist[16 * i], self.quyulist[16 * i + 1]),
-                                cv2.FONT_HERSHEY_TRIPLEX, 1, (255, 0, 0), 2)
-                # 如果是横卡（二卷答题卡）分数打在选项后
-                else:
+                logging.debug('进入答错扣分处理')
+                if len(self.fenzhilist) == 0:
                     cv2.putText(self.img, '-' + str(self.meitifenshu),
                                 (self.quyulist[16 * i + 14], self.quyulist[16 * i + 1 + 12]),
                                 cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 1)
+
+                else:
+                    logging.debug('进入答错处理---多分值处理部分')
+                    logging.debug(self.answer[i])
+                    fenzhilist[i] = 0
+                    if len(self.answer[i]) == 1:
+                        logging.debug(self.answer[i])
+                        logging.debug(self.meitifenshudanxuan)
+                        cv2.putText(self.img, '-' + str(self.meitifenshudanxuan),
+                                    (self.quyulist[16 * i + 14], self.quyulist[16 * i + 1 + 12]),
+                                    cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 1)
+                    else:
+                        logging.debug(self.answer[i])
+                        logging.debug(self.meitifenshuduoxuan)
+                        cv2.putText(self.img, '-' + str(self.meitifenshuduoxuan),
+                                    (self.quyulist[16 * i + 14], self.quyulist[16 * i + 1 + 12]),
+                                    cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 1)
                 # 如果选项为空，self.kong+1
                 if xx == '':
                     self.kong = self.kong + 1
@@ -1032,18 +1109,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.kongxuanxian.add(self.name + str(self.filelist[self.filenumjsq]).split('\\')[-1])
         if self.xuan.count('') >= 1:
             self.jianquekg = False
+            logging.debug('3误判为空白，没有选择，剪切开关设为false')
+            logging.debug('有空选项')
+            logging.debug(self.jianquekg)
             if self.lineEdit_chaxunxuesheng.text() == '3':
                 self.jianquekg = True
 
             self.kongxuanxiansum = self.kongxuanxiansum + str(self.kongxuanxian)
         logging.debug("扣分打印正常")
         # 计算学生总分
-        strfs = str(self.right * self.meitifenshu + self.bandui * self.bufendefen)
-        print(strfs + '分')
+
+        if len(self.fenzhilist) == 0:
+            strfs = str(self.right * self.meitifenshu + self.bandui * self.bufendefen)
+            self.strfs = strfs
+        else:
+            strfs = str(sum(fenzhilist))
+            self.strfs = strfs
+        logging.debug(strfs)
+        logging.debug(type(strfs))
+        print(self.name, ':', strfs + '分')
         # 试卷打印上总分
         cv2.putText(self.img, '{} '.format(strfs),
                     (self.quyulist[-2], self.quyulist[-1] + 60), cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 2)
         logging.debug("总分打印正常")
+
+        logging.debug(self.jianquekg)
+        logging.debug(str(self.filelist[self.filenumjsq]))
         # 红框圈住答题的选项
         if self.jianquekg == True:
             for i in range(self.tishu):
@@ -1107,37 +1198,41 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.shitipanbie()
                     # 读取学生姓名
                     self.name = self.shyijuan.cell(row=i, column=2).value
+                    logging.debug("学生姓名为{}".format(self.name))
                     if self.jianquekg == True:
                         # 成绩计算，错题打印标记
                         self.tongjitdayin()
-
+                        logging.debug("打印试卷标记和分数完成")
                         # 读取excel选择题成绩
-                        fenshu = self.shyijuan.cell(row=i, column=3).value
-                        # 计算所有试卷总分
-                        self.zongfenbj = self.zongfenbj + self.right * self.meitifenshu + self.bandui * self.bufendefen
-
+                        # fenshu = self.shyijuan.cell(row=i, column=3).value
+                        # # 计算所有试卷总分
+                        # if len(self.fenzhilist) == 0:
+                        #     self.zongfenbj = self.zongfenbj + self.right * self.meitifenshu + self.bandui * self.bufendefen
+                        # else:
+                        #     self.zongfen = self.strfs
                         # 学生选项写入excel
                         for xx2 in range(len(self.answer)):
                             self.shyijuan.cell(row=i, column=4 + xx2, value=self.xuan[xx2])
-
+                        logging.debug("选项写入完成")
+                        logging.debug(self.strfs)
                         # 写入I卷总分
-                        self.shyijuan.cell(row=i,
-                                           column=3).value = self.right * self.meitifenshu + self.bandui * self.bufendefen
+                        self.shyijuan.cell(row=i, column=3).value = self.strfs
+                        logging.debug("写入总分完成")
                         # 批改成功的试卷路径存入excel
                         self.shyijuan.cell(row=i, column=len(self.answer) + 4).value = str(
                             self.filelist[self.filenumjsq]).split("\\")[-1]
+                        logging.debug("保存路径完成")
                         # 以下四行把成功识别的试卷放入bak下
-                        if self.jianquekg == True:
-                            # 有效试卷读数加1
-                            self.youxiaonum = self.youxiaonum + 1
-                            p = Path.cwd()
-                            p2 = Path(str(self.filelist[self.filenumjsq]))
-                            target = p.joinpath('bak').joinpath(p2.name)
-                            if target.exists():
-                                target.unlink()
-                            p2.rename(target)
-                        print('姓名：', self.name, '分数：',
-                              self.right * self.meitifenshu + self.bandui * self.bufendefen)
+                        # if self.jianquekg == True:
+                        # 有效试卷读数加1
+                        # self.youxiaonum = self.youxiaonum + 1
+                        p = Path.cwd()
+                        p2 = Path(str(self.filelist[self.filenumjsq]))
+                        target = p.joinpath('bak').joinpath(p2.name)
+                        if target.exists():
+                            target.unlink()
+                        p2.rename(target)
+                        # print('姓名：', self.name, '分数：', self.strfs)
 
             try:
                 self.chengjiexcel.save(self.openexcelname)
@@ -1157,7 +1252,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 # 读取I卷总分
                 fenshu = self.shyijuan.cell(row=i, column=3).value
                 # 计算所有试卷总分
-                self.zongfenbj = self.zongfenbj + self.right * self.meitifenshu + self.bandui * self.bufendefen
+                # if len(self.fenzhilist) == 0:
+                #     self.zongfenbj = self.zongfenbj + self.right * self.meitifenshu + self.bandui * self.bufendefen
+                # else:
+                #     self.zongfen = self.strfs
                 # 本行控制：允许空白I卷分时写入、更新成绩时必须为同一张试卷且分数变大才能写入
                 if fenshu == None or (
                         int(fenshu) < int(self.right * self.meitifenshu + self.bandui * self.bufendefen) and (
@@ -1187,8 +1285,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     # 以下四行把成功识别的试卷放入bak下
                     if self.jianquekg == True:
                         # 批改成功有效试卷读数器加1
-                        self.youxiaonum = self.youxiaonum + 1
-                        logging.debug('有效试卷份数加1')
+                        # self.youxiaonum = self.youxiaonum + 1
+                        # logging.debug('有效试卷份数加1')
                         p = Path.cwd()
                         p2 = Path(str(self.filelist[self.filenumjsq]))
                         target = p.joinpath('bak').joinpath(p2.name)
@@ -1209,20 +1307,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # 开始阅卷按钮
     @pyqtSlot()
     def on_pushButton_kaishi_clicked(self):
-        for i in [170, 120]:
-            self.yuzhi = i
-            for j in [60, 45, 30, 5]:
-                self.mianjibaifenbi = j
-                self.kaishiyuanjuan()
-        # self.bianlipic()
-        print(f'还有{len(self.filelist)}份试卷没有录入，1手动调整区域2检查试卷3强制录入。')
+        if self.lineEdit_chaxunxuesheng.text() == '4':  # 手动阅卷
+            self.kaishiyuanjuan()
+            self.bianlipic()
+            print(f'还有{len(self.filelist)}份试卷没有录入，1手动调整区域2检查试卷3强制录入。')
+        else:
+            for i in [210, 170, 120]:
+                self.yuzhi = i
+                for j in [60, 45, 30, 5]:
+                    if len(self.filelist) != 0:
+                        self.mianjibaifenbi = j
+                        self.kaishiyuanjuan()
+                    else:
+                        break
+            self.bianlipic()
+            print(f'还有{len(self.filelist)}份试卷没有录入，1手动调整区域2检查试卷3强制录入。')
 
     def kaishiyuanjuan(self):
         # 试卷文件列表指针
         self.filenumjsq = 0
         # 批阅完成试卷计数
-        self.youxiaonum = 0
-        logging.debug('self.youxiao正确')
+        # self.youxiaonum = 0
+        # logging.debug('self.youxiao正确')
         # 选项中有空白试卷文件名
         self.kongxuanxiansum = ''
         # 有效试卷总分
@@ -1249,15 +1355,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         for i in range(len(self.filelist)):
             # 2试卷二值化处理
-            self.picchuli(self.filelist[self.filenumjsq])
             print('*' * 60)
-            print('正在识别：', self.filelist[self.filenumjsq])
+            print('开始识别：', self.filelist[self.filenumjsq])
+            self.picchuli(self.filelist[self.filenumjsq])
+
             # 3.考号识别
             try:
                 self.kaohaoshibie()
                 # 5成绩存入excel
+                logging.debug('下面是挑选试卷开关的值')
+                logging.debug(self.tiaoxuanshijuankaiguan)
                 if self.tiaoxuanshijuankaiguan == False:
+
                     self.xiechengji()
+
                     self.filenumjsq = self.filenumjsq + 1
                     if self.lineEdit_chaxunxuesheng.text() == '2':
                         self.jianquekg = True
@@ -1273,23 +1384,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         cv2.destroyAllWindows()
 
                 else:
-                    if self.zimu[1] >= int(self.kauanohaoch) >= self.zimu[0]:
-                        print('是需要的试卷')
-                        # movetols
-                        os.rename(self.filelist[self.filenumjsq],
-                                  str(self.filelist[self.filenumjsq]).replace('pic', 'ls'))
-                        os.rename(self.filelist[self.filenumjsq + 1],
-                                  str(self.filelist[self.filenumjsq + 1]).replace('pic', 'ls'))
-                        self.filenumjsq = self.filenumjsq + 2
-                    else:
-                        print('不是需要的试卷')
-                        os.remove(self.filelist[self.filenumjsq])
-                        os.remove(self.filelist[self.filenumjsq + 1])
-                        self.filenumjsq = self.filenumjsq + 2
+                    if self.yuzhistr == 'txsj':
+                        if self.zimu[1] >= int(self.kauanohaoch) >= self.zimu[0]:
+                            print('是需要的试卷')
+                            # movetols
+                            os.rename(self.filelist[self.filenumjsq],
+                                      str(self.filelist[self.filenumjsq]).replace('pic', 'ls'))
+                            os.rename(self.filelist[self.filenumjsq + 1],
+                                      str(self.filelist[self.filenumjsq + 1]).replace('pic', 'ls'))
+                            self.filenumjsq = self.filenumjsq + 2
+                        else:
+                            print('不是需要的试卷')
+                            os.remove(self.filelist[self.filenumjsq])
+                            os.remove(self.filelist[self.filenumjsq + 1])
+                            self.filenumjsq = self.filenumjsq + 2
+                    elif self.yuzhistr == 'txsj1':
+                        logging.debug(self.filelist[self.filenumjsq])
+                        logging.debug(str(self.filelist[self.filenumjsq]).replace('pic', 'ls'))
+                        logging.debug(self.filenumjsq)
+                        if self.zimu[1] >= int(self.kauanohaoch) >= self.zimu[0]:
+                            print('是需要的试卷')
+                            # movetols
+                            os.rename(self.filelist[self.filenumjsq],
+                                      str(self.filelist[self.filenumjsq]).replace('pic', 'ls'))
 
+                            self.filenumjsq = self.filenumjsq + 1
+                        else:
+                            print('不是需要的试卷')
+                            os.remove(self.filelist[self.filenumjsq])
+
+                            self.filenumjsq = self.filenumjsq + 1
                 # 6总体阅卷情况
                 if self.filenumjsq >= len(self.filelist):
-                    print('*****已阅' + str(self.filenumjsq) + '份,录入' + str(self.youxiaonum) + '份')
+                    # print('*****已阅' + str(self.filenumjsq) + '份,录入' + str(self.youxiaonum) + '份')
                     break
             except:
                 self.tiaoxingmacw = self.tiaoxingmacw + str(
@@ -1297,7 +1424,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.filenumjsq = self.filenumjsq + 1
                 if self.filenumjsq >= len(self.filelist):
                     # if self.youxiaonum > 0:
-                    print('*****已阅' + str(self.filenumjsq) + '份,录入' + str(self.youxiaonum) + '份')
+                    # print('*****已阅' + str(self.filenumjsq) + '份,录入' + str(self.youxiaonum) + '份')
 
                     # else:
                     #     print('*****已阅' + str(self.filenumjsq) + '份,录入' + str(self.youxiaonum) + '份')
@@ -1465,22 +1592,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             qianshimingdan = ''
             # 对总分进行统计
             for kk in range(self.shyijuan.max_row):
+                logging.debug('总分中检查第' + str(kk + 3) + '行')
                 if self.shyijuan.cell(row=kk + 3, column=3).value != None:
-                    # print(self.shyijuan.cell(row=kk + 3, column=2).value,int(self.shyijuan.cell(row=kk + 3, column=3).value))
+                    logging.debug(self.shyijuan.cell(row=kk + 3, column=2).value)
+                    print(self.shyijuan.cell(row=kk + 3, column=2).value,
+                          int(self.shyijuan.cell(row=kk + 3, column=3).value))
                     renfenzhidian[self.shyijuan.cell(row=kk + 3, column=2).value] = int(
                         self.shyijuan.cell(row=kk + 3, column=3).value)
-                    # print(renfenzhidian)
-                    if int(self.shyijuan.cell(row=kk + 3, column=3).value) == int(self.meitifenshu * self.tishu):
+                    print(renfenzhidian)
+                    if int(self.shyijuan.cell(row=kk + 3, column=3).value) == self.zongfen:
                         manfenren = manfenren + self.shyijuan.cell(row=kk + 3, column=2).value + ' '
-                        # print('manfen',self.shyijuan.cell(row=kk+3, column=2).value)
-                    if int(self.shyijuan.cell(row=kk + 3, column=3).value) == int(
-                            self.meitifenshu * self.tishu - self.bufendefen):
+                        print('manfen', self.shyijuan.cell(row=kk + 3, column=2).value)
+                    elif int(self.shyijuan.cell(row=kk + 3, column=3).value) == self.zongfen - int(self.bufendefen):
                         bufenfenren = bufenfenren + self.shyijuan.cell(row=kk + 3, column=2).value + ' '
-                        # print('bufenfen',self.shyijuan.cell(row=kk+3, column=2).value)
-                    if int(self.shyijuan.cell(row=kk + 3, column=3).value) == int(
-                            self.meitifenshu * self.tishu - self.bufendefen * 2):
+                        print('bufenfen', self.shyijuan.cell(row=kk + 3, column=2).value)
+                    elif int(self.shyijuan.cell(row=kk + 3, column=3).value) >= self.zongfen - self.bufendefen * 2:
                         bufenfenren2 = bufenfenren2 + self.shyijuan.cell(row=kk + 3, column=2).value + ' '
-                        # print('bufen2',self.shyijuan.cell(row=kk+3, column=2).value)
+                        print('bufen2', self.shyijuan.cell(row=kk + 3, column=2).value)
             logging.debug('总分统计完毕')
             ls = list(renfenzhidian.items())
             # print(ls[0])
@@ -1505,10 +1633,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.shtongjish.cell(row=10, column=1, value='I卷').font = fontred
             self.shtongjish.cell(row=16, column=1).value = '10-18名：'
             self.shtongjish.cell(row=15, column=1).value = ' 1- 9名：'
-            self.shtongjish.cell(row=11, column=1).value = '满分' + str(self.meitifenshu * self.tishu) + '名单：'
-            self.shtongjish.cell(row=13, column=1).value = str(
-                self.meitifenshu * self.tishu - self.bufendefen * 2) + '分名单：'
-            self.shtongjish.cell(row=12, column=1).value = str(self.meitifenshu * self.tishu - self.bufendefen) + '分名单：'
+            self.shtongjish.cell(row=11, column=1).value = '满分' + str(self.zongfen) + '名单：'
+            self.shtongjish.cell(row=12, column=1).value = '错半道名单：'
+            self.shtongjish.cell(row=13, column=1).value = '错1道名单：'
+
             self.shtongjish.cell(row=12, column=2).value = bufenfenren
             self.shtongjish.cell(row=13, column=2).value = bufenfenren2
             self.shtongjish.cell(row=11, column=2).value = manfenren
