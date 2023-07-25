@@ -5,7 +5,7 @@
 测试环境python3.6.5
 
 本软件是《python轻松入门》一本第15章的源代码，打包下载
-<img height="800" src="D:\python\arumenpython\0\封面.png" width="600"/>
+<img height="800" src="https://github.com/zhaohuijun888/pythonabc15/blob/main/%E5%B0%81%E9%9D%A2.png" width="600"/>
 阿里云盘：https://www.aliyundrive.com/s/ZfPYZcJczu2
 
 百度云盘：https://pan.baidu.com/s/18zCKE5FeUe9SrsELMDA3pg?pwd=zhhj
